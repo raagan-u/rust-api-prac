@@ -1,25 +1,25 @@
-use mongodb::bson::{doc, oid::ObjectId};
-use serde::{{Deserialize, Serialize}, de::Deserializer};
+use mongodb::bson::{doc, oid::ObjectId, DateTime as BsonDateTime};
+use serde::{{Deserialize, Serialize}, de::{self, Deserializer}};
 
-use chrono::{DateTime, NaiveDateTime, Utc};
-
+use chrono::{DateTime, TimeZone, Utc};
 
 fn deserialize_date_time_opt<'de, D>(deserializer: D) -> Result<Option<DateTime<Utc>>, D::Error>
 where
     D: Deserializer<'de>,
 {
-    let s: Option<String> = Option::deserialize(deserializer)?;
-    match s {
-        Some(date_str) => {
-            // Parse the string into NaiveDateTime, and then convert to DateTime<Utc>
-            let naive_date = NaiveDateTime::parse_from_str(&date_str, "%Y-%m-%d %H:%M:%S")
-                .map_err(serde::de::Error::custom)?;
-            // Create DateTime<Utc> from NaiveDateTime
-           // let utc_date = DateTime::from_utc(naive_date, Utc);
-           let utc_date = naive_date.and_utc();
-            Ok(Some(utc_date))
+    let bson_date: Option<BsonDateTime> = Option::deserialize(deserializer)?;
+
+    if let Some(bson_date_time) = bson_date {
+        // Get the timestamp in milliseconds and convert it to chrono::DateTime<Utc>
+        let timestamp_millis = bson_date_time.timestamp_millis();
+        
+        // Use `timestamp_millis_opt` instead of `timestamp_millis` to handle errors
+        match Utc.timestamp_millis_opt(timestamp_millis).single() {
+            Some(datetime) => Ok(Some(datetime)),
+            None => Err(de::Error::custom("Invalid or ambiguous timestamp")),
         }
-        None => Ok(None),
+    } else {
+        Ok(None) // Return None if BSON date is not present
     }
 }
 
