@@ -1,36 +1,32 @@
-use mongodb::bson::{doc, oid::ObjectId, DateTime as BsonDateTime};
-use serde::{{Deserialize, Serialize}, de::{self, Deserializer}};
+use mongodb::bson::{doc, oid::ObjectId};
+use serde::{{Deserialize, Serialize}, de::{Deserializer, Error as SerdeError}};
 
-use chrono::{DateTime, TimeZone, Utc};
+use chrono::{DateTime, Utc};
 
 fn deserialize_date_time_opt<'de, D>(deserializer: D) -> Result<Option<DateTime<Utc>>, D::Error>
 where
     D: Deserializer<'de>,
 {
-    let bson_date: Option<BsonDateTime> = Option::deserialize(deserializer)?;
-
-    if let Some(bson_date_time) = bson_date {
-        // Get the timestamp in milliseconds and convert it to chrono::DateTime<Utc>
-        let timestamp_millis = bson_date_time.timestamp_millis();
-        
-        // Use `timestamp_millis_opt` instead of `timestamp_millis` to handle errors
-        match Utc.timestamp_millis_opt(timestamp_millis).single() {
-            Some(datetime) => Ok(Some(datetime)),
-            None => Err(de::Error::custom("Invalid or ambiguous timestamp")),
-        }
-    } else {
-        Ok(None) // Return None if BSON date is not present
+    let date_str: Option<String> = Option::deserialize(deserializer)?;
+    
+    match date_str {
+        Some(s) => {
+            // Try to parse the string into a DateTime<Utc>
+            DateTime::parse_from_rfc3339(&s)
+                .map(|dt| Some(dt.with_timezone(&Utc)))
+                .map_err(D::Error::custom)
+        },
+        None => Ok(None), // Return None if no string is present
     }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PollOption {
-    pub id: ObjectId, 
     pub text: String, 
     pub votes: i32,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Poll {
     #[serde(rename = "_id")]
     pub id: ObjectId,

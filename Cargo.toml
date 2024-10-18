@@ -12,7 +12,8 @@ dotenv = "0.15"
 tokio = { version = "1", features = ["full"] }
 
 # MongoDB driver for Rust
-mongodb = "2.4"
+async-trait = "0.1"
+mongodb = { version = "2.0", features = ["tokio-runtime"] }
 
 # Bson library for working with MongoDB BSON types
 bson = "2.0"
@@ -25,3 +26,4 @@ futures = "0.3"
 
 # OnceCell for creating static, one-time initialized variables (like the DB instance)
 once_cell = "1.18"
+env_logger = "0.10"
